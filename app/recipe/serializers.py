@@ -14,11 +14,14 @@ class IngredientSerializer(serializers.ModelSerializer):
 
 class RecipeSerializer(serializers.ModelSerializer):
     """Serializer for the Recipe object"""
-    ingredients = IngredientSerializer(many=True, required=False)
+    ingredients = IngredientSerializer(
+        many=True,
+        required=False
+    )
 
     class Meta:
         model = Recipe
-        fields = ('id', 'name', 'description', 'ingredients', )
+        fields = ['id', 'name', 'description', 'ingredients']
         read_only_fields = ('id', )
 
     def create(self, validated_data):

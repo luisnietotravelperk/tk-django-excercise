@@ -54,6 +54,22 @@ class TestRecipeApi(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 2)
 
+    def test_recipe_filtering_list(self):
+        """Test tje retrieving values filtering by name"""
+        recipe_01 = sample_recipe(name='Recipe one')
+        recipe_02 = sample_recipe(name='Number two recipe')
+        recipe_03 = sample_recipe(name="Another one")
+
+        res = self.client.get(RECIPE_URL, {'name': 'rec'})
+
+        serialized_data_01 = RecipeSerializer(recipe_01)
+        serialized_data_02 = RecipeSerializer(recipe_02)
+        serialized_data_03 = RecipeSerializer(recipe_03)
+
+        self.assertIn(serialized_data_01.data, res.data)
+        self.assertIn(serialized_data_02.data, res.data)
+        self.assertNotIn(serialized_data_03.data, res.data)
+
     def test_recipe_detail(self):
         """Test the retrieving values of one recipe"""
         recipe = sample_recipe()
@@ -82,12 +98,6 @@ class TestRecipeApi(TestCase):
 
     def test_recipe_valid_creation_with_ingredient(self):
         """Test the valid creation adding ingredients since the beginning"""
-        ingredient_1 = {'name': 'chicken'}
-        ingredient_2 = {'name': 'rice'}
-        ingredient_3 = {'name': 'salt'}
-
-        import pdb
-        pdb.set_trace()
         payload = {
             'name': 'Chicken over rice',
             'description': 'Delicious plate',
@@ -97,7 +107,9 @@ class TestRecipeApi(TestCase):
                 {'name': 'salt'}
             ]
         }
-        res = self.client.post(RECIPE_URL, payload)
+
+        res = self.client.post(RECIPE_URL, payload, format='json')
+
         recipe = Recipe.objects.get(id=res.data['id'])
 
         ingredients = recipe.ingredients.all()
@@ -127,8 +139,8 @@ class TestRecipeApi(TestCase):
         self.assertEqual(recipe.name, payload['name'])
         self.assertEqual(recipe.description, current_description)
 
-    def test_recipe_full_update(self):
-        """Test the full update of a recipe"""
+    def test_recipe_full_update_without_ingredients(self):
+        """Test the full update of a recipe without ingredients"""
         recipe = sample_recipe()
         sample_ingredient(recipe)
         payload = {
@@ -144,11 +156,45 @@ class TestRecipeApi(TestCase):
         self.assertEqual(recipe.description, payload['description'])
         self.assertEqual(recipe.ingredients.count(), 0)
 
+    def test_recipe_full_update_with_ingredients(self):
+        """Test the full update of a recipe with ingredients"""
+        recipe = sample_recipe()
+        sample_ingredient(recipe)
+        payload = {
+            'name': 'New recipe',
+            'description': 'New description',
+            'ingredients': [
+                {'name': 'new ingredient'}
+            ]
+        }
+
+        url = recipe_detail_url(recipe.id)
+        self.client.put(url, payload, format='json')
+
+        recipe.refresh_from_db()
+        self.assertEqual(recipe.name, payload['name'])
+        self.assertEqual(recipe.description, payload['description'])
+        self.assertEqual(recipe.ingredients.count(), 1)
+
     def test_recipe_invalid_update(self):
         """Test the invalid update of a recipe"""
+        recipe = sample_recipe()
+        payload = {'name': ''}
+
+        url = recipe_detail_url(recipe.id)
+        res = self.client.put(url, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_recipe_valid_elimination(self):
         """Test the valid elimination of a recipe"""
+        recipe = sample_recipe()
+        sample_ingredient(recipe)
+        sample_ingredient(recipe)
 
-    def test_recipe_invalid_elimination(self):
-        """Test the invalid elimination of a recipe"""
+        url = recipe_detail_url(recipe.id)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Recipe.objects.all().count(), 0)
+        self.assertEqual(Ingredient.objects.all().count(), 0)
