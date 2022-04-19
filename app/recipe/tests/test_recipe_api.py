@@ -112,10 +112,8 @@ class TestRecipeApi(TestCase):
 
         recipe = Recipe.objects.get(id=res.data['id'])
 
-        ingredients = recipe.ingredients.all()
-
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(len(ingredients), 3)
+        self.assertEqual(recipe.ingredients.all().count(), 3)
 
     def test_recipe_invalid_creation(self):
         """Test the invalid creation of the recipe"""
